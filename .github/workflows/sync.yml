@@ -32,7 +32,7 @@ jobs:
 
       - name: 推送更新到 origin
         run: |
-          git push origin main
+          git push origin master
 
       - name: 获取上游最新 Tag
         id: get_upstream_tag
