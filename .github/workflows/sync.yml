@@ -1,0 +1,65 @@
+name: Sync from Upstream
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时检查一次
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 设置 Git 信息
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: 克隆 Fork 仓库
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0  # 获取所有历史（必要以同步 tag）
+
+      - name: 添加上游仓库
+        run: |
+          git remote add upstream https://github.com/上游作者名/上游仓库名.git
+          git fetch upstream --tags
+
+      - name: 合并上游分支
+        run: |
+          git checkout main
+          git merge upstream/main --allow-unrelated-histories --no-edit || echo "Nothing to merge"
+
+      - name: 推送更新到 origin
+        run: |
+          git push origin main
+
+      - name: 获取上游最新 Tag
+        id: get_upstream_tag
+        run: |
+          latest_tag=$(git describe --tags `git rev-list --tags upstream/main --max-count=1`)
+          echo "latest_upstream_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: 检查本地是否已有该 Tag
+        id: check_tag
+        run: |
+          tag_exists=$(git tag -l "${{ steps.get_upstream_tag.outputs.latest_upstream_tag }}")
+          if [ -z "$tag_exists" ]; then
+            echo "create_tag=true" >> $GITHUB_OUTPUT
+          else
+            echo "create_tag=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 创建并推送 Tag
+        if: steps.check_tag.outputs.create_tag == 'true'
+        run: |
+          git tag ${{ steps.get_upstream_tag.outputs.latest_upstream_tag }}
+          git push origin ${{ steps.get_upstream_tag.outputs.latest_upstream_tag }}
+
+      - name: 创建 GitHub Release
+        if: steps.check_tag.outputs.create_tag == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_upstream_tag.outputs.latest_upstream_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
