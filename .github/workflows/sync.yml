@@ -27,8 +27,8 @@ jobs:
 
       - name: 合并上游分支
         run: |
-          git checkout main
-          git merge upstream/main --allow-unrelated-histories --no-edit || echo "Nothing to merge"
+          git checkout master
+          git merge upstream/master --allow-unrelated-histories --no-edit || echo "Nothing to merge"
 
       - name: 推送更新到 origin
         run: |
@@ -37,7 +37,7 @@ jobs:
       - name: 获取上游最新 Tag
         id: get_upstream_tag
         run: |
-          latest_tag=$(git describe --tags `git rev-list --tags upstream/main --max-count=1`)
+          latest_tag=$(git describe --tags `git rev-list --tags upstream/master --max-count=1`)
           echo "latest_upstream_tag=$latest_tag" >> $GITHUB_OUTPUT
 
       - name: 检查本地是否已有该 Tag
